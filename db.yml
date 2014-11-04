@@ -1,0 +1,13 @@
+ccdb:
+  host: localhost
+  port: 5432
+  dbname: ccdb
+  user: dings
+  #password: c2183247bddbe961b37a
+
+uaadb:
+  host: localhost
+  port: 5432
+  dbname: uaadb
+  user: dings
+  #password: c2183247bddbe961b37a

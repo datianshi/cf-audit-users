@@ -1,0 +1,58 @@
+#!/usr/bin/env ruby
+
+require 'pg'
+require 'yaml'
+
+db = YAML.load_file('db.yml')
+
+users = {}
+
+conn = PG::Connection.open(db['ccdb'])
+res = conn.exec_params('select guid from users')
+
+res.each{ |tuple|
+  users[tuple['guid']] = {}
+}
+
+users.keys.each{ |key|
+  organization_managers = conn.exec_params('select name from organizations o, organizations_managers om, users u where om.organization_id=o.id and om.user_id=u.id and u.guid=$1', [key])
+  users[key]['organization_managers'] = organization_managers.column_values(0)
+  organization_auditor = conn.exec_params('select name from organizations o, organizations_auditors oa, users u where oa.organization_id=o.id and oa.user_id=u.id and u.guid=$1', [key])
+  users[key]['organization_auditors'] = organization_auditor.column_values(0)
+  space_developers = conn.exec_params('select o.name as oname, s.name as sname from spaces s, spaces_developers sd, users u , organizations o where sd.space_id=s.id and s.organization_id = o. id and sd.user_id=u.id and u.guid=$1', [key])
+  users[key]['space_developers']={}
+  space_developers.each{
+    |tuple|
+    users[key]['space_developers'][tuple['oname']] = tuple['sname']
+  }
+  users[key]['space_managers']={}
+  space_managers = conn.exec_params('select o.name as oname, s.name as sname from spaces s, spaces_managers sm, users u , organizations o where sm.space_id=s.id and s.organization_id = o. id and sm.user_id=u.id and u.guid=$1', [key])
+  space_managers.each{
+    |tuple|
+    users[key]['space_managers'][tuple['oname']] = tuple['sname']
+  }
+
+  users[key]['space_auditors']={}
+  space_auditors = conn.exec_params('select o.name as oname, s.name as sname from spaces s, spaces_auditors sa, users u , organizations o where sa.space_id=s.id and s.organization_id = o. id and sa.user_id=u.id and u.guid=$1', [key])
+  space_auditors.each{
+    |tuple|
+    users[key]['space_auditors'][tuple['oname']] = tuple['sname']
+  }
+}
+
+#puts users;
+
+conn = PG::Connection.open(db['uaadb'])
+
+users.keys.each{ |key|
+  user_names = conn.exec_params('select username from users u where u.id=$1', [key])
+
+  if user_names.ntuples() > 0
+    users[key]['username']= user_names[0]['username']
+  else
+    users[key]['username']= nil
+  end
+}
+
+puts users.to_yaml;
+
