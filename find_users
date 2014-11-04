@@ -14,6 +14,17 @@ res.each{ |tuple|
   users[tuple['guid']] = {}
 }
 
+def create_space_role(users, key, result, role)
+  result.each{
+    |tuple|
+    if !users[key][role][tuple['oname']]
+      users[key][role][tuple['oname']] = [tuple['sname']]
+    else
+      users[key][role][tuple['oname']] << tuple['sname']
+    end
+  }
+end
+
 users.keys.each{ |key|
   organization_managers = conn.exec_params('select name from organizations o, organizations_managers om, users u where om.organization_id=o.id and om.user_id=u.id and u.guid=$1', [key])
   users[key]['organization_managers'] = organization_managers.column_values(0)
@@ -21,22 +32,15 @@ users.keys.each{ |key|
   users[key]['organization_auditors'] = organization_auditor.column_values(0)
   space_developers = conn.exec_params('select o.name as oname, s.name as sname from spaces s, spaces_developers sd, users u , organizations o where sd.space_id=s.id and s.organization_id = o. id and sd.user_id=u.id and u.guid=$1', [key])
   users[key]['space_developers']={}
-  space_developers.each{
-    |tuple|
-    users[key]['space_developers'][tuple['oname']] = tuple['sname']
-  }
   users[key]['space_managers']={}
   space_managers = conn.exec_params('select o.name as oname, s.name as sname from spaces s, spaces_managers sm, users u , organizations o where sm.space_id=s.id and s.organization_id = o. id and sm.user_id=u.id and u.guid=$1', [key])
-  space_managers.each{
-    |tuple|
-    users[key]['space_managers'][tuple['oname']] = tuple['sname']
-  }
-
   users[key]['space_auditors']={}
   space_auditors = conn.exec_params('select o.name as oname, s.name as sname from spaces s, spaces_auditors sa, users u , organizations o where sa.space_id=s.id and s.organization_id = o. id and sa.user_id=u.id and u.guid=$1', [key])
-  space_auditors.each{
-    |tuple|
-    users[key]['space_auditors'][tuple['oname']] = tuple['sname']
+
+  hash = {"space_developers" => space_developers, "space_managers" =>  space_managers, "space_auditors" => space_auditors}
+  hash.each {
+    |role,result|
+    create_space_role(users, key, result , role)
   }
 }
 
